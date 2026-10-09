@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>证件照制作</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --primary: #4f6ef2;
+    --bg: #f5f6fa;
+    --card: #ffffff;
+    --border: #e4e7f0;
+    --text: #2b2f3a;
+    --muted: #8a90a0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: var(--bg); color: var(--text);
+    display: flex; justify-content: center; padding: 24px 16px;
+  }
+  .wrap { width: 100%; max-width: 1080px; }
+  h1 { font-size: 20px; text-align: center; margin-bottom: 20px; }
+  .panels { display: grid; grid-template-columns: 380px 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 860px) { .panels { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .card h2 { font-size: 14px; color: var(--muted); font-weight: 600; margin-bottom: 12px; }
+  /* 上传区 */
+  #drop {
+    border: 2px dashed #c9d0e8; border-radius: 10px; padding: 28px 12px;
+    text-align: center; color: var(--muted); cursor: pointer; transition: all .15s;
+    font-size: 13px; line-height: 1.8;
+  }
+  #drop.hover, #drop:hover { border-color: var(--primary); background: #f4f6ff; }
+  #drop img { max-width: 100%; max-height: 220px; border-radius: 6px; }
+  /* 表单 */
+  label { display: block; font-size: 13px; margin: 12px 0 6px; color: var(--muted); }
+  select, input[type=number] {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 13px; background: #fff; color: var(--text);
+  }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  #customSize { display: none; margin-top: 8px; }
+  .colors { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; align-items: center; }
+  .swatch {
+    width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent; outline: 1px solid var(--border);
+  }
+  .swatch.active { border-color: #fff; outline: 2px solid var(--primary); }
+  input[type=color] {
+    width: 30px; height: 30px; border: none; border-radius: 50%; cursor: pointer;
+    background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); padding: 0;
+  }
+  input[type=color]::-webkit-color-swatch-wrapper { padding: 2px; }
+  input[type=color]::-webkit-color-swatch { border: none; border-radius: 50%; }
+  .opts { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 6px; font-size: 13px; }
+  .opts label { display: flex; align-items: center; gap: 5px; margin: 0; color: var(--text); cursor: pointer; }
+  #btnGo {
+    margin-top: 16px; width: 100%; padding: 12px; border: none; border-radius: 10px;
+    background: var(--primary); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  #btnGo:disabled { opacity: .55; cursor: not-allowed; }
+  #status { margin-top: 10px; font-size: 13px; text-align: center; min-height: 18px; }
+  #status.err { color: #d33; }
+  /* 结果区 */
+  #results { display: none; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .shot { text-align: center; }
+  .shot img {
+    width: 100%; background:
+      repeating-conic-gradient(#eee 0 25%, #fff 0 50%) 0 0/16px 16px;
+    border: 1px solid var(--border); border-radius: 8px;
+  }
+  .shot .cap { font-size: 13px; color: var(--muted); margin: 6px 0; }
+  .shot .dl {
+    padding: 6px 14px; font-size: 12px; cursor: pointer;
+    color: var(--primary); background: #fff;
+    border: 1px solid var(--primary); border-radius: 6px;
+  }
+  .shot .dl:hover { background: var(--primary); color: #fff; }
+  .shot .dl:disabled { opacity: .5; cursor: wait; }
+  .shot.wide { grid-column: 1 / -1; }
+  #placeholder { color: var(--muted); font-size: 13px; text-align: center; padding: 60px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>证件照制作工具</h1>
+  <div class="panels">
+    <!-- 左侧：上传 + 设置 -->
+    <div class="card">
+      <h2>1. 上传照片</h2>
+      <div id="drop">点击选择或拖入照片<br><small>支持 JPG / PNG，需为单人正面照</small></div>
+      <input type="file" id="file" accept="image/*" hidden>
+
+      <h2 style="margin-top:18px">2. 设置</h2>
+      <label for="size">尺寸</label>
+      <select id="size"></select>
+      <div id="customSize" class="row">
+        <input type="number" id="h" placeholder="高(px)" min="100" max="2000">
+        <input type="number" id="w" placeholder="宽(px)" min="100" max="2000">
+      </div>
+
+      <label>底色</label>
+      <div class="colors" id="colors"></div>
+
+      <label for="render">底色样式</label>
+      <select id="render">
+        <option value="0">纯色</option>
+        <option value="1">上下渐变</option>
+        <option value="2">中心渐变</option>
+      </select>
+
+      <div class="opts">
+        <label><input type="checkbox" id="chgOnly">仅换底（不裁剪）</label>
+        <label><input type="checkbox" id="doLayout" checked>生成六寸排版照</label>
+      </div>
+
+      <button id="btnGo" disabled>开始制作</button>
+      <div id="status"></div>
+    </div>
+
+    <!-- 右侧：结果 -->
+    <div class="card">
+      <h2>3. 结果</h2>
+      <div id="placeholder">制作结果将显示在这里</div>
+      <div id="results"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let curColor = '638cce', customColor = null, fileInfo = null, lastResult = null;
+
+// ---- 初始化预设 ----
+fetch('/api/presets').then(r => r.json()).then(d => {
+  $('size').innerHTML = d.sizes.map((s, i) =>
+    `<option value="${i}">${s.name}（${s.height}×${s.width}）</option>`).join('')
+    + '<option value="-1">自定义尺寸</option>';
+  $('colors').innerHTML = d.colors.map((c, i) =>
+    `<div class="swatch${i === 0 ? ' active' : ''}" data-hex="${c.hex}" title="${c.name}"
+      style="background:#${c.hex}"></div>`).join('')
+    + `<input type="color" id="colorPick" value="#${customColor || curColor}" title="自定义颜色">`;
+  $('colors').addEventListener('click', e => {
+    const sw = e.target.closest('.swatch');
+    if (sw) {
+      curColor = sw.dataset.hex;
+      document.querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
+      sw.classList.add('active');
+    }
+  });
+  $('colorPick').addEventListener('input', e => {
+    customColor = e.target.value.slice(1);
+    curColor = customColor;
+    document.querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
+  });
+});
+$('size').addEventListener('change', () => {
+  $('customSize').style.display = $('size').value === '-1' ? 'flex' : 'none';
+});
+
+// ---- 上传 ----
+const drop = $('drop');
+drop.addEventListener('click', () => $('file').click());
+['dragover', 'dragenter'].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.add('hover');
+}));
+['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.remove('hover');
+}));
+drop.addEventListener('drop', e => setFile(e.dataTransfer.files[0]));
+$('file').addEventListener('change', e => setFile(e.target.files[0]));
+
+function setFile(f) {
+  if (!f || !f.type.startsWith('image/')) return;
+  if (f.size > 20 * 1024 * 1024) { setStatus('图片超过 20MB 限制', true); return; }
+  fileInfo = f;
+  const img = new Image();
+  img.onload = () => { drop.innerHTML = ''; drop.appendChild(img); };
+  img.src = URL.createObjectURL(f);
+  $('btnGo').disabled = false;
+  setStatus('');
+}
+
+function setStatus(msg, isErr = false) {
+  const s = $('status');
+  s.textContent = msg || '';
+  s.className = isErr ? 'err' : '';
+}
+
+// ---- 生成 ----
+$('btnGo').addEventListener('click', async () => {
+  if (!fileInfo) return;
+  let height, width;
+  if ($('size').value === '-1') {
+    height = +$('h').value; width = +$('w').value;
+    if (!height || !width) { setStatus('请填写自定义宽高', true); return; }
+  } else {
+    const s = (await (await fetch('/api/presets')).json()).sizes[+$('size').value];
+    height = s.height; width = s.width;
+  }
+  const fd = new FormData();
+  fd.append('file', fileInfo);
+  fd.append('height', height);
+  fd.append('width', width);
+  fd.append('color', curColor);
+  fd.append('render', $('render').value);
+  fd.append('change_bg_only', $('chgOnly').checked);
+  fd.append('layout', $('doLayout').checked);
+
+  $('btnGo').disabled = true;
+  setStatus('处理中（高清抠图模式，约 10 秒）…');
+  try {
+    const r = await fetch('/api/idphoto', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!r.ok) { setStatus(d.error || d.detail || '处理失败', true); return; }
+    renderResults(d);
+    setStatus('完成');
+  } catch (err) {
+    setStatus('请求失败：' + err.message, true);
+  } finally {
+    $('btnGo').disabled = false;
+  }
+});
+
+function renderResults(d) {
+  lastResult = d;
+  const items = [
+    ['标准照', 'standard', d.standard], ['高清照', 'hd', d.hd],
+    ['透明底', 'matting', d.matting], ['六寸排版照', 'layout', d.layout],
+  ].filter(([, , v]) => v);
+  $('placeholder').style.display = 'none';
+  const box = $('results');
+  box.style.display = 'grid';
+  box.innerHTML = items.map(([cap, key, b64]) => `
+    <div class="shot${key === 'layout' ? ' wide' : ''}">
+      <img src="data:image/png;base64,${b64}" alt="${cap}">
+      <div class="cap">${cap}</div>
+      <button class="dl" data-key="${key}" data-cap="${cap}">下载 PNG</button>
+    </div>`).join('');
+}
+
+// 保存：优先 pywebview 原生"另存为"对话框；浏览器环境下回退 <a download>
+$('results').addEventListener('click', async e => {
+  const btn = e.target.closest('.dl');
+  if (!btn || !lastResult) return;
+  const key = btn.dataset.key, cap = btn.dataset.cap;
+  const b64 = lastResult[key];
+  const name = 'idphoto_' + cap + '.png';
+  btn.disabled = true;
+  try {
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.save_file) {
+      const saved = await window.pywebview.api.save_file(name, b64);
+      setStatus(saved ? '已保存：' + saved : '已取消保存');
+    } else {
+      const a = document.createElement('a');
+      a.href = 'data:image/png;base64,' + b64;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setStatus('已开始下载 ' + name + '（浏览器下载目录）');
+    }
+  } catch (err) {
+    setStatus('保存失败：' + err.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
